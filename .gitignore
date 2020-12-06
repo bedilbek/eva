@@ -7,3 +7,4 @@ s3cfg
 media
 mturk
 annotator/kcftracker/*.pyd
+.env

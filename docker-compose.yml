@@ -2,7 +2,8 @@ version: '3'
 services:
   eva:
     build: .
-    command: python3 manage.py runserver 0.0.0.0:8000
+    image: ${EVA_IMAGE}:${EVA_VERSION}
+    command: gunicorn --workers 4 --max-requests=1000 --access-logfile - --error-logfile - --bind=0.0.0.0:8000 eva.wsgi:application
     ports:
       - "8000:8000"
     environment:
@@ -21,6 +22,7 @@ services:
       
   celery:
     build: .
+    image: ${EVA_IMAGE}:${EVA_VERSION}
     command: celery -A eva worker -l info
     environment:
       - POSTGRES_USER=pguser
