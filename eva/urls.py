@@ -1,13 +1,11 @@
-from django.conf.urls import url
-from django.conf.urls.static import static
 from django.conf import settings
+from django.conf.urls import url
 from django.contrib import admin
 from django.contrib.auth.views import login, logout
 from django.views.generic.base import RedirectView
 from django.views.static import serve
 
 from annotator.views import *
-from annotator.services import *
 
 admin.site.site_header = 'eva'
 
@@ -19,8 +17,8 @@ urlpatterns = [
     url(r'^annotation/(\d+)/$', AnnotationView.as_view()),
     url(r'^login/$', login,
         {'template_name': 'admin/login.html',
-            'extra_context': {'site_header': 'BeaverDam Login'}
-        }, name='login'),
+         'extra_context': {'site_header': 'BeaverDam Login'}
+         }, name='login'),
     url(r'^logout/$', logout),
     url(r'^accounts/', RedirectView.as_view(url='/')),
     url(r'^admin/', admin.site.urls),
@@ -30,6 +28,7 @@ urlpatterns = [
     url(r'^tracker/(\d+)/$', tracker, name='tracker'),
     url(r'^tracker/get_results/$', tracker_get_results, name='tracker_get_results'),
     url(r'^check_video_name/(?P<name>.*)/$', check_video_name),
+    url(r'^export/dataset/(?P<name>.*)/$', ExportDataset.as_view(), name='export_dataset'),
     url(r'^export/labels/(?P<name>.*)/$', ExportLabels.as_view(), name='export_labels'),
     url(r'^export/video/(?P<vid>\d+)/$', ExportVideo.as_view(), name='export_video'),
     url(r'^export/video/status/$', ExportVideoStatus.as_view()),

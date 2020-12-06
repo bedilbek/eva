@@ -38,7 +38,7 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='video',
             name='_image_list',
-            field=models.TextField(blank=True, db_column='image_list', help_text='List of filenames of images to be used as video frames, in JSON format.When present, image list is assumed and <filename> is ignored.'),
+            field=models.TextField(blank=True, db_column='image_list', help_text='List of filenames of JPEGImages to be used as video frames, in JSON format.When present, image list is assumed and <filename> is ignored.'),
         ),
         migrations.AddField(
             model_name='video',

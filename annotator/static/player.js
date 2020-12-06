@@ -64,7 +64,7 @@ class Player {
     }
 
 
-    // Init ALL the annotations!
+    // Init ALL the Annotations!
 
     initView() {
 
@@ -81,7 +81,7 @@ class Player {
             this.annotationsDataReady.resolve();
         });
 
-        // When this.annotations is loaded AND view is ready for drawing...
+        // When this.Annotations is loaded AND view is ready for drawing...
         Promise.all([this.annotationsDataReady(), this.viewReady()]).then(() => {
 
             for (let annotation of this.annotations) {
@@ -94,7 +94,7 @@ class Player {
                     annotation.modified = true;
                 }
             }
-            $(this).triggerHandler('change-onscreen-annotations');
+            $(this).triggerHandler('change-onscreen-Annotations');
             $(this).triggerHandler('change-keyframes');
 
             this.annotationsReady.resolve();
@@ -125,7 +125,7 @@ class Player {
 
         $(rect).on('focus', () => {
             this.selectedAnnotation = annotation;
-            $(this).triggerHandler('change-onscreen-annotations');
+            $(this).triggerHandler('change-onscreen-Annotations');
             $(this).triggerHandler('change-keyframes');
             $(this).triggerHandler('change-btn-txt');
         });
@@ -152,8 +152,8 @@ class Player {
     }
 
     initHandlers() {
-        // Drawing annotations
-        $(this).on('change-onscreen-annotations', () => {
+        // Drawing Annotations
+        $(this).on('change-onscreen-Annotations', () => {
             this.drawOnscreenAnnotations();
         });
 
@@ -214,13 +214,13 @@ class Player {
          $(this).on('delete-keyframes', () => {
                 this.view.video.pause();
                 this.deleteSelectedKeyframe();
-                $(this).triggerHandler('change-onscreen-annotations');
+                $(this).triggerHandler('change-onscreen-Annotations');
                 $(this).triggerHandler('change-keyframes');
          });
          $(this).on('delete-single-keyframe', () => {
                 this.view.video.pause();
                 this.deleteSingleSelectedKeyframe();
-                $(this).triggerHandler('change-onscreen-annotations');
+                $(this).triggerHandler('change-onscreen-Annotations');
                 $(this).triggerHandler('change-keyframes');
           });
 
@@ -244,12 +244,12 @@ class Player {
 
             $(this.view.creationRect).on('focus', () => {
                 this.selectedAnnotation = null;
-                $(this).triggerHandler('change-onscreen-annotations');
+                $(this).triggerHandler('change-onscreen-Annotations');
                 $(this).triggerHandler('change-keyframes');
             });
 
             this.view.video.onTimeUpdate(() => {
-                $(this).triggerHandler('change-onscreen-annotations');
+                $(this).triggerHandler('change-onscreen-Annotations');
                 this.annotationRectBindings.forEach(function (binding) {
                     binding.annotation.modified = false;
                 });
@@ -310,7 +310,7 @@ class Player {
                     previousKeyFrame = kf;
                 }
                 this.selectedAnnotation.updateKeyframe({time:time, bounds:previousKeyFrame.bounds}, this.isImageSequence);
-                $(this).triggerHandler('change-onscreen-annotations');
+                $(this).triggerHandler('change-onscreen-Annotations');
                 $(this).triggerHandler('change-keyframes');
             });
 
@@ -333,7 +333,7 @@ class Player {
                 var annotation = $(e.currentTarget).data('annotation');
                 var newLabel = $('#edit-label option:selected').val();
                 annotation.changeAnnotationLabel(newLabel);
-                $(this).triggerHandler('change-onscreen-annotations');
+                $(this).triggerHandler('change-onscreen-Annotations');
                 $(this).triggerHandler('change-keyframes');
                 $('#edit-label-modal').modal('toggle');
             });
@@ -504,7 +504,7 @@ class Player {
                 }
                 annotation.modified = false;
                 $(this).triggerHandler('update-tracker-status');
-                $(this).triggerHandler('change-onscreen-annotations');
+                $(this).triggerHandler('change-onscreen-Annotations');
                 $(this).triggerHandler('change-keyframes');
                 trackerDone.resolve();
             } else {

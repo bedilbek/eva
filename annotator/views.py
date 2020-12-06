@@ -1,30 +1,29 @@
 import io
-import zipfile
-import logging
-import subprocess
+import math
 import re
-#import cv2
-#import numpy as np
-from django.shortcuts import render
-from django.http import HttpResponse, Http404, HttpResponseBadRequest, HttpResponseNotFound
-from django.views.generic import View
-from django.views.decorators.clickjacking import xframe_options_exempt
-from django.views.decorators.cache import never_cache
-from django.db import IntegrityError
-from django.db.models import Max
-from django.http import JsonResponse
-from celery.result import AsyncResult
+import zipfile
+
 from celery import chain
 from celery import states as task_states
+from celery.result import AsyncResult
 from django.conf import settings
+from django.db import IntegrityError
+from django.db.models import Max
+from django.http import HttpResponse, Http404, HttpResponseBadRequest, HttpResponseNotFound
+from django.http import JsonResponse
+# import cv2
+# import numpy as np
+from django.shortcuts import render
 from django.utils.decorators import method_decorator
+from django.views.decorators.cache import never_cache
+from django.views.decorators.clickjacking import xframe_options_exempt
 from django.views.decorators.csrf import csrf_exempt
+from django.views.generic import View
+
 from .models import *
 from .tasks import tracker_task, create_cache_task, convert_to_darknet, convert_to_pascal_voc, \
-    extract_frames, VideoError, create_zipfile, clean_zipfiles
+    extract_frames, create_zipfile, clean_zipfiles, collect_image_indexes
 from .utils import *
-import math
-
 
 logger = logging.getLogger(__name__)
 
@@ -107,7 +106,7 @@ class VideoView(View):
 
         first, last, start_of_slice, end_of_slice = self.get_video_slice(video_index, length_image_list)
         video_slice = slice(start_of_slice, end_of_slice)
-        video_display_data = {'project':project_name, 'name':video.name, 'images_left':length_image_list-end_of_slice}
+        video_display_data = {'project': project_name, 'name': video.name, 'images_left': length_image_list - end_of_slice}
         video_chunk = []
         video_dimension = []
         for img in video.image_list[video_slice]:
@@ -147,6 +146,87 @@ class AnnotationView(View):
         video.annotation = json.dumps(data['annotation'])
         video.save()  # save table in db
         return HttpResponse('success')
+
+
+class ExportDataset(View):
+    def get(self, request, name):
+        if not 'id' in request.GET:
+            return HttpResponse(status=403)
+
+        ids = json.loads(request.GET['id'])
+
+        if not hasattr(self, name):
+            return HttpResponse(status=403)
+
+        response = getattr(self, name)(ids)
+
+        return response
+
+    def pascal_voc(self, video_ids):
+        b = io.BytesIO()
+        single_video = len(video_ids) == 1
+
+        with zipfile.ZipFile(b, 'w') as zf:
+            if single_video:
+                vid = Video.objects.get(id=video_ids[0])
+                file_images = collect_image_indexes(video_ids[0])
+                files = convert_to_pascal_voc(vid, folder_name='JPEGImages')
+                for annotation_filename, annotation_text in files.items():
+                    zf.writestr(os.path.join('Annotations', annotation_filename), annotation_text)
+                    image_index = os.path.splitext(annotation_filename)[0]
+                    zf.write(file_images[image_index]['path'], os.path.join('JPEGImages', image_index + file_images[image_index]['ext']))
+            else:
+                videos = [v for v in Video.objects.filter(id__in=video_ids)]
+                for index, vid in enumerate(videos):
+                    files = convert_to_pascal_voc(vid, file_name_prefix=str(index + 1), folder_name='JPEGImages')
+                    file_images = collect_image_indexes(vid.id)
+                    for annotation_filename, annotation_text in files.items():
+                        zf.writestr(os.path.join('Annotations', str(index + 1) + annotation_filename), annotation_text)
+                        image_index = os.path.splitext(annotation_filename)[0]
+                        zf.write(file_images[image_index]['path'], os.path.join('JPEGImages', str(index + 1) + image_index + file_images[image_index]['ext']))
+
+        response = HttpResponse(
+            b.getvalue(),
+            content_type='application/x-zip-compressed'
+        )
+        response['Content-Disposition'] = (
+            'attachment; '
+            'filename=dataset.zip'
+        )
+        return response
+
+    def yolo(self, video_ids):
+        b = io.BytesIO()
+        single_video = len(video_ids) == 1
+
+        with zipfile.ZipFile(b, 'w') as zf:
+            if single_video:
+                vid = Video.objects.get(id=video_ids[0])
+                file_images = collect_image_indexes(video_ids[0])
+                files = convert_to_darknet(vid)
+                for annotation_filename, annotation_text in files.items():
+                    zf.writestr(os.path.join('Annotations', annotation_filename), annotation_text)
+                    image_index = os.path.splitext(annotation_filename)[0]
+                    zf.write(file_images[image_index]['path'], os.path.join('Annotations', image_index + file_images[image_index]['ext']))
+            else:
+                videos = [v for v in Video.objects.filter(id__in=video_ids)]
+                for index, vid in enumerate(videos):
+                    files = convert_to_darknet(vid)
+                    file_images = collect_image_indexes(vid.id)
+                    for annotation_filename, annotation_text in files.items():
+                        zf.writestr(os.path.join('Annotations', str(index + 1) + annotation_filename), annotation_text)
+                        image_index = os.path.splitext(annotation_filename)[0]
+                        zf.write(file_images[image_index]['path'], os.path.join('Annotations', str(index + 1) + image_index + file_images[image_index]['ext']))
+
+        response = HttpResponse(
+            b.getvalue(),
+            content_type='application/x-zip-compressed'
+        )
+        response['Content-Disposition'] = (
+            'attachment; '
+            'filename=dataset.zip'
+        )
+        return response
 
 
 class ExportLabels(View):
@@ -223,6 +303,7 @@ class ExportLabels(View):
         ).format(name)
         return response
 
+
 class UploadVideos(View):
     def get(self, request, name):
         try:
@@ -298,7 +379,7 @@ class UploadVideos(View):
 
 
 class CreateVideo(View):
-    "Create video from uploaded images."
+    "Create video from uploaded JPEGImages."
 
     def post(self, request, name):
         status = 'success'
@@ -514,7 +595,7 @@ class LabelSelect(View):
                 project = Project.objects.get(id=project_id)
                 num = LabelMapping.objects.filter(
                     project__id=project_id).aggregate(Max('num'))['num__max']
-                num = num+1 if num is not None else 0
+                num = num + 1 if num is not None else 0
                 mapping = LabelMapping(project=project, num=num)
                 resp['status'] = 'new'
             else:
@@ -640,7 +721,7 @@ class VideoStatus(View):
                     'text': 'Video does not exists', 'code': 1}
         else:
             if not video.uploadfile_set.filter(file_type='image').exists():
-                text = 'No images available'
+                text = 'No JPEGImages available'
                 resp = {'status': 'error', 'text': text, 'code': 6}
                 has_video = video.uploadfile_set.filter(file_type='video').exists()
                 if has_video and settings.FFMPEG_BIN:
@@ -738,7 +819,7 @@ class ExportVideoStatus(View):
         vid = request.POST['id']
         video = Video.objects.get(id=vid)
         resp = {}
-        if video.zipfile and os.path.isfile(video.zipfile.path):
+        if video.zipfile and os.path.isfile(video.zipfile.path) and video.zip_file_annotation == video.annotation:
             resp['status'] = 'ok'
         elif video.image_list:
             task = create_zipfile.delay(vid)

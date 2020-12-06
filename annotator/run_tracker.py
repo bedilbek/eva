@@ -81,7 +81,7 @@ def main():
         "height", help="Height of the target box.", type=float)
     run_parser.add_argument(
         "cache_file",
-        help="Path to cache file with the images.")
+        help="Path to cache file with the JPEGImages.")
     run_parser.add_argument(
         "start_frame",
         help="Frame where the target box was selected.",

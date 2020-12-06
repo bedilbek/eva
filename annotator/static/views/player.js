@@ -15,7 +15,7 @@ class PlayerView {
         // This container of the player
         this.$container = $container;
 
-        // The Raphael paper (canvas) for annotations
+        // The Raphael paper (canvas) for Annotations
         this.$paper = null;
 
         // Namespaced className generator
@@ -113,7 +113,7 @@ class PlayerView {
     }
     get loading() { return this._loading; }
 
-    // Init ALL the annotations!
+    // Init ALL the Annotations!
 
     initKeyframebar() {
         this.keyframebar = new Keyframebar({classBaseName: this.classBaseName});

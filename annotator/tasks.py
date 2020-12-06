@@ -1,28 +1,21 @@
-import urllib
-import urllib.request
 import json
-import uuid
 import os
-import cv2
-import numpy as np
-import h5py
-import xml.etree.ElementTree as ET
 import subprocess
-import tempfile
-import shutil
-import logging
+import uuid
+import xml.etree.ElementTree as ET
 import zipfile
-import linecache
 from time import time
 
-from django.core.files import File
-from .models import Video, UploadFile, LabelMapping
+import cv2
+import h5py
 from celery import shared_task
-from django.conf import settings
-from .utils import *
-from .kcftracker import kcftracker
-
 from celery.utils.log import get_task_logger
+from django.conf import settings
+
+from .kcftracker import kcftracker
+from .models import Video, UploadFile, LabelMapping
+from .utils import *
+
 logger = get_task_logger(__name__)
 
 
@@ -44,13 +37,13 @@ def tracker_task(video_id, frame_no, bbox):
     hdf5_file = h5py.File(video.cache_file, 'r')
 
     global_scale = hdf5_file['scale'][0]
-    bbox = [c*global_scale for c in bbox]  # The input image has been scaled
+    bbox = [c * global_scale for c in bbox]  # The input image has been scaled
     coordinates = dict()
     coordinates[frame_no] = [c // global_scale for c in bbox]
     frame = hdf5_file['img'][frame_no, ...]
     tracker.init(bbox, frame)
     low = frame_no + 1
-    last_frame = (frame_no//settings.TRACKER_SIZE + 1)*settings.TRACKER_SIZE
+    last_frame = (frame_no // settings.TRACKER_SIZE + 1) * settings.TRACKER_SIZE
     num_images = hdf5_file['img'].shape[0]
     high = min(last_frame + 1, num_images)
     t0 = time()
@@ -60,7 +53,7 @@ def tracker_task(video_id, frame_no, bbox):
         bbox = list(bbox)
         if ok:
             # Tracking success
-            coordinates[i] = [c//global_scale for c in bbox]
+            coordinates[i] = [c // global_scale for c in bbox]
         else:
             # Tracking failure
             logger.error(
@@ -71,14 +64,14 @@ def tracker_task(video_id, frame_no, bbox):
             # coordinates[frame_no + frame_counter] = bbox
             break
     t1 = time()
-    logger.info('Time it took was: {}'.format(t1-t0))
+    logger.info('Time it took was: {}'.format(t1 - t0))
     return coordinates
 
 
 def scale_box(box, scale):
     (w, h) = box[2:]
-    box = [a+b for (a, b) in zip(box, [(1-scale)/2*w, (1-scale)/2*h, 0, 0])]
-    box = [a*b for (a, b) in zip(box, [1, 1, scale, scale])]
+    box = [a + b for (a, b) in zip(box, [(1 - scale) / 2 * w, (1 - scale) / 2 * h, 0, 0])]
+    box = [a * b for (a, b) in zip(box, [1, 1, scale, scale])]
     return box
 
 
@@ -93,7 +86,7 @@ def create_cache_task(video_id):
         files = [os.path.join(settings.MEDIA_ROOT, x.file.name) for x in files]
 
         if len(files) == 0:
-            raise TrackerError('No images. Cannot create cache.')
+            raise TrackerError('No JPEGImages. Cannot create cache.')
 
         img = cv2.imread(files[0])
         height = img.shape[0]
@@ -150,7 +143,7 @@ def create_cache_task(video_id):
 @shared_task
 def extract_frames(video_id):
     img_ext = settings.IMAGE_FORMAT
-    
+
     video = Video.objects.get(id=video_id)
     files = video.uploadfile_set.filter(file_type=UploadFile.VIDEO)
 
@@ -161,10 +154,10 @@ def extract_frames(video_id):
         raise VideoError('Images already exist')
 
     video_file = files[0].file.path
-    
+
     img_dir = str(video.id)
     img_dir_abs = os.path.join(settings.MEDIA_ROOT, img_dir)
-    
+
     try:
         subprocess.run([settings.FFMPEG_BIN, '-i', video_file,
                         os.path.join(img_dir_abs, '%04d.{}'.format(img_ext))], check=True)
@@ -182,7 +175,7 @@ def extract_frames(video_id):
         file_db.video = video
         file_db.file = file
         file_db.save()
-        
+
     with open(os.path.join(settings.MEDIA_ROOT, out_files[0]), 'rb') as f:
         img_size = get_img_size_from_buffer(f)
         video.height = img_size[0]
@@ -212,49 +205,58 @@ def convert_to_darknet(video):
     result = {}
     if video.annotation:
         files = video.images
-        
+
         width = video.width
         height = video.height
-        
-        assert(width != 0 and height != 0)
-        
+
+        assert (width != 0 and height != 0)
+
         label_mapping = LabelMapping.objects.filter(project=video.project)
         class_mapping = {x.label.name: x.num for x in label_mapping}
-        
+
         labels = parse_annotations(video.annotation)
-        
+
         for key, file in enumerate(files):
             if file[1] and file[2]:  # read width and height of each image
                 width = file[1]
                 height = file[2]
             filename = os.path.splitext(os.path.split(file[0])[1])[0] + '.txt'
+            # ignore frames where there is no label
             if key in labels:
                 frame = []
                 for label in labels[key]:
+                    xmin = round(label['x'])
+                    xmin = 0 if xmin < 0 else xmin
+                    ymin = round(label['y'])
+                    ymin = 0 if ymin < 0 else ymin
+                    cur_width = label['w']
+                    cur_height = label['h']
+                    width_diff = xmin + cur_width - width
+                    height_diff = ymin + cur_height - height
+                    cur_width = cur_width - width_diff if width_diff > 0 else cur_width
+                    cur_height = cur_height - height_diff if height_diff > 0 else cur_height
                     frame.append('{:d} {:.6f} {:.6f} {:.6f} {:.6f}'.format(
                         class_mapping[label['class']],
-                        (label['x'] + label['w']/2) / width,
-                        (label['y'] + label['h']/2) / height,
-                        label['w'] / width,
-                        label['h'] / height
+                        (xmin + cur_width / 2) / width,
+                        (ymin + cur_height / 2) / height,
+                        cur_width / width,
+                        cur_height / height
                     ))
                 text = '\n'.join(frame)
-            else:
-                text = ''
-            result.update({filename: text})
+                result.update({filename: text})
     return result
 
 
 def indent(elem, level=0):
     "See https://stackoverflow.com/questions/749796/pretty-printing-xml-in-python"
-    i = "\n" + level*"  "
+    i = "\n" + level * "  "
     if len(elem):
         if not elem.text or not elem.text.strip():
             elem.text = i + "  "
         if not elem.tail or not elem.tail.strip():
             elem.tail = i
         for elem in elem:
-            indent(elem, level+1)
+            indent(elem, level + 1)
         if not elem.tail or not elem.tail.strip():
             elem.tail = i
     else:
@@ -262,15 +264,15 @@ def indent(elem, level=0):
             elem.tail = i
 
 
-def convert_to_pascal_voc(video):
+def convert_to_pascal_voc(video, file_name_prefix=None, folder_name=None):
     result = {}
     if video.annotation:
         files = video.images
-        
+
         width = video.width
         height = video.height
         depth = video.channels
-    
+
         labels = parse_annotations(video.annotation)
 
         for key, file in enumerate(files):
@@ -278,10 +280,10 @@ def convert_to_pascal_voc(video):
                 width = file[1]
                 height = file[2]
             filename = os.path.splitext(os.path.split(file[0])[1])[0] + '.xml'
-            
+
             root = ET.Element('annotation')
-            ET.SubElement(root, 'filename').text = os.path.split(file[0])[1]
-            ET.SubElement(root, 'folder').text = video.name
+            ET.SubElement(root, 'filename').text = file_name_prefix + os.path.split(file[0])[1] if file_name_prefix else os.path.split(file[0])[1]
+            ET.SubElement(root, 'folder').text = folder_name if folder_name else video.name
 
             size = ET.SubElement(root, 'size')
             ET.SubElement(size, 'width').text = str(width)
@@ -289,46 +291,62 @@ def convert_to_pascal_voc(video):
             ET.SubElement(size, 'depth').text = str(depth)
 
             ET.SubElement(root, 'segmented').text = "0"
-            
+            # ignore frames where there are no Annotations
             if key in labels:
                 for label in labels[key]:
                     obj = ET.SubElement(root, 'object')
                     name = ET.SubElement(obj, 'name')
                     name.text = label['class']
 
+                    difficult = ET.SubElement(obj, 'difficult')
+                    difficult.text = str(0)
+
                     bbox = ET.SubElement(obj, 'bndbox')
 
+                    xmin = round(label['x'])
+                    xmin = 1 if xmin < 1 else xmin
                     bb = ET.SubElement(bbox, 'xmin')
-                    bb.text = str(round(label['x']))
+                    bb.text = str(xmin)
+                    ymin = round(label['y'])
+                    ymin = 1 if ymin < 1 else ymin
                     bb = ET.SubElement(bbox, 'ymin')
-                    bb.text = str(round(label['y']))
+                    bb.text = str(ymin)
+                    xmax = round(label['x'] + label['w'])
+                    xmax = width if xmax > width else xmax
                     bb = ET.SubElement(bbox, 'xmax')
-                    bb.text = str(round(label['x'] + label['w']))
+                    bb.text = str(xmax)
+                    ymax = round(label['y'] + label['h'])
+                    ymax = height if ymax > height else ymax
                     bb = ET.SubElement(bbox, 'ymax')
-                    bb.text = str(round(label['y'] + label['h']))
+                    bb.text = str(ymax)
 
                 indent(root)
                 text = ET.tostring(root, encoding='unicode')
-            else:
-                text = ''
-            result.update({filename: text})
+                result.update({filename: text})
     return result
 
 
 @shared_task
 def create_zipfile(video_id):
     video = Video.objects.get(id=video_id)
+    labels = parse_annotations(video.annotation)
+
     files = collect_images(video_id)
 
     os.makedirs(settings.ZIPFILE_ROOT, exist_ok=True)
     video.zipfile.name = os.path.join(
         settings.ZIPFILE_DIR, '.'.join([str(uuid.uuid4()), 'zip']))
+    # save last changed Annotations
+    video.zip_file_annotation = video.annotation
     video.save()
 
     video_name = video.name
     with zipfile.ZipFile(video.zipfile.path, 'w', compression=zipfile.ZIP_STORED) as zip_file:
         for name, path in files.items():
-            zip_file.write(path, os.path.join(video_name, name))
+            frame_num = int(name.split('.')[0])
+            # ignore frames where there is no label
+            if frame_num in labels:
+                zip_file.write(path, os.path.join(video_name, name))
 
     return video_id
 
@@ -351,5 +369,13 @@ def collect_images(video_id):
     video = Video.objects.get(id=video_id)
     files = video.uploadfile_set.filter(file_type=UploadFile.IMAGE)
     files = {os.path.split(x.file.name)[1]: x.file.path for x in files}
+
+    return files
+
+
+def collect_image_indexes(video_id):
+    video = Video.objects.get(id=video_id)
+    files = video.uploadfile_set.filter(file_type=UploadFile.IMAGE)
+    files = {os.path.splitext(os.path.split(x.file.name)[1])[0]: {'path': x.file.path, 'ext': os.path.splitext(x.file.path)[1]} for x in files}
 
     return files

@@ -1388,7 +1388,7 @@
     /** Used to lookup unminified function names. */
     var realNames = {};
 
-    /** Used to detect maps, sets, and weakmaps. */
+    /** Used to detect maps, ImageSets, and weakmaps. */
     var dataViewCtorString = toSource(DataView),
         mapCtorString = toSource(Map),
         promiseCtorString = toSource(Promise),
@@ -5641,7 +5641,7 @@
      */
     var getTag = baseGetTag;
 
-    // Fallback for data views, maps, sets, and weak maps in IE 11,
+    // Fallback for data views, maps, ImageSets, and weak maps in IE 11,
     // for data views in Edge, and promises in Node.js.
     if ((DataView && getTag(new DataView(new ArrayBuffer(1))) != dataViewTag) ||
         (Map && getTag(new Map) != mapTag) ||
@@ -10534,7 +10534,7 @@
      * **Note:** This method is loosely based on the
      * [structured clone algorithm](https://mdn.io/Structured_clone_algorithm)
      * and supports cloning arrays, array buffers, booleans, date objects, maps,
-     * numbers, `Object` objects, regexes, sets, strings, symbols, and typed
+     * numbers, `Object` objects, regexes, ImageSets, strings, symbols, and typed
      * arrays. The own enumerable properties of `arguments` objects are cloned
      * as plain objects. An empty object is returned for uncloneable values such
      * as error objects, functions, DOM nodes, and WeakMaps.
@@ -10979,7 +10979,7 @@
      *
      * Array-like values such as `arguments` objects, arrays, buffers, strings, or
      * jQuery-like collections are considered empty if they have a `length` of `0`.
-     * Similarly, maps and sets are considered empty if they have a `size` of `0`.
+     * Similarly, maps and ImageSets are considered empty if they have a `size` of `0`.
      *
      * @static
      * @memberOf _
@@ -11030,7 +11030,7 @@
      *
      * **Note:** This method supports comparing arrays, array buffers, booleans,
      * date objects, error objects, maps, numbers, `Object` objects, regexes,
-     * sets, strings, symbols, and typed arrays. `Object` objects are compared
+     * ImageSets, strings, symbols, and typed arrays. `Object` objects are compared
      * by their own, not inherited, enumerable properties. Functions and DOM
      * nodes are **not** supported.
      *

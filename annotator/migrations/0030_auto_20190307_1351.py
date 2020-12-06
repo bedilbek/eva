@@ -34,7 +34,7 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='video',
             name='host',
-            field=models.CharField(blank=True, help_text='Path to prepend to filenames to form the url for this video or the images in `image_list`.', max_length=1048),
+            field=models.CharField(blank=True, help_text='Path to prepend to filenames to form the url for this video or the JPEGImages in `image_list`.', max_length=1048),
         ),
         migrations.AddField(
             model_name='videolabels',

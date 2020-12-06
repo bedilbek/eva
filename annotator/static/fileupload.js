@@ -57,7 +57,7 @@ $(function () {
         let error = true;
         let name = $textbox.val();
         let parent = $textbox.parent();
-        if (/^[A-Za-z_0-9\b]+$/.test(name)) {
+        if (/^[A-Za-z_\-0-9\b]+$/.test(name)) {
             if (name.length > 100) {
                 parent.removeClass("has-success").addClass("has-error");
                 $('#nameError').text('Use less than 100 characters').removeClass('hidden');

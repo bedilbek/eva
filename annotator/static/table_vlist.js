@@ -2,9 +2,10 @@ $(function () {
   var $table = $("#vlist-table");
   var url = '/videos/';
   var project_select_url = '/labels/project_select/';
-  var $remove = $("#remove_video")
-  var $export = $("#export_vlist")
-  
+  var $remove = $("#remove_video");
+  var $export = $("#export_vlist");
+  var $export_dataset = $("#export_dataset");
+
     // Customizing the two button modal for this page:
     document.getElementById("twoButtonsModalOptionA").className += " btn-danger";
 
@@ -30,7 +31,7 @@ $(function () {
         'click .remove': function(e, value, row, index) {
             two_buttons_modal.set_up({
               title: "Warning",
-              body: "This will delete the video and any annotations. Are you sure" +
+              body: "This will delete the video and any Annotations. Are you sure" +
                      " you want to proceed?",
               text_a: "Delete video",
               text_b: "Cancel",
@@ -87,6 +88,7 @@ $(function () {
             'check-all.bs.table uncheck-all.bs.table', function () {
         $remove.prop('disabled', !$table.bootstrapTable('getSelections').length);
         $export.prop('disabled', !$table.bootstrapTable('getSelections').length);
+        $export_dataset.prop('disabled', !$table.bootstrapTable('getSelections').length);
     });
     
     $table.on('editable-init.bs.table', function() {
@@ -95,7 +97,7 @@ $(function () {
     
     function operateFormatter(value, row, index) {
         return [
-            '<a class="download" href="javascript:void(0)" title="Download images">',
+            '<a class="download" href="javascript:void(0)" title="Download JPEGImages">',
             '<span class="fas fa-download"></span>',
             '</a>',
             '&nbsp;&nbsp;&nbsp;',
@@ -132,7 +134,7 @@ $(function () {
       var data = $table.bootstrapTable('getData'),
           index = $(this).parents('tr').data('index');
       if (data[index]['annotation']) {
-        if (!confirm("All previous annotations will be deleted. Are you sure?")) {
+        if (!confirm("All previous Annotations will be deleted. Are you sure?")) {
           return "Aborted.";
         }
       }
@@ -142,7 +144,7 @@ $(function () {
         var ids = getIdSelections();
         two_buttons_modal.set_up({
           title: "Warning",
-          body: "This will delete the selected videos and any annotations. Are you sure" +
+          body: "This will delete the selected videos and any Annotations. Are you sure" +
                 " you want to proceed?",
           text_a: "Delete videos",
           text_b: "Cancel",
@@ -156,7 +158,7 @@ $(function () {
        if (ids.length) {
             window.open('/export/labels/yolo/?id=' + JSON.stringify(ids));
         }
-    })
+    });
     
     $('#pascal-voc-btn').click(function(){
         ids = getIdSelections();
@@ -164,8 +166,24 @@ $(function () {
         if (ids.length) {
             window.open('/export/labels/pascal_voc/?id=' + JSON.stringify(ids));
         }
-    })
-    
+    });
+
+    $('#yolo-dataset-btn').click(function(){
+       ids = getIdSelections();
+       checkIfEmptyAnnotations();
+       if (ids.length) {
+            window.open('/export/dataset/yolo/?id=' + JSON.stringify(ids));
+        }
+    });
+
+    $('#pascal-voc-dataset-btn').click(function(){
+        ids = getIdSelections();
+        checkIfEmptyAnnotations();
+        if (ids.length) {
+            window.open('/export/dataset/pascal_voc/?id=' + JSON.stringify(ids));
+        }
+    });
+
     function getIdSelections() {
         return $.map($table.bootstrapTable('getSelections'), function (row) {
               return row.id
@@ -178,7 +196,7 @@ $(function () {
        if(videos_annotated['false'] > 0){
             $.notify({
                 icon: 'fas fa-info-circle',
-                message: videos_annotated['false'] + ' ' + 'of the selected videos has empty annotations',
+                message: videos_annotated['false'] + ' ' + 'of the selected videos has empty Annotations',
             },{
             type: 'info',
             });

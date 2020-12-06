@@ -62,6 +62,7 @@ class Video(models.Model):
     project = models.ForeignKey(
         Project, on_delete=models.SET_NULL, blank=True, null=True)
     zipfile = models.FileField(upload_to='zipfiles', blank=True)
+    zip_file_annotation = models.TextField(blank=True, help_text='An annotation saved while creating zip file')
     width = models.IntegerField(default=0)
     height = models.IntegerField(default=0)
     channels = models.IntegerField(default=0)

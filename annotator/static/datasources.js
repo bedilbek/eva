@@ -65,7 +65,7 @@ var DataSources = {
                 credentials: 'same-origin'
             }).then((response) => {
                 if (!response.ok) {
-                    return Promise.reject("DataSources.annotations.load failed: fetch");
+                    return Promise.reject("DataSources.Annotations.load failed: fetch");
                 }
                 return response.text();
             }).then((text) => {

@@ -77,7 +77,7 @@ SOFTWARE.
             $el.append($canvas);
             initControls();
 
-            // prepare images list
+            // prepare JPEGImages list
             $el.find('img').each(function(j, img) {
                 if($(img).prop('src') != '') {
                     plugin.frames[j] = img;
