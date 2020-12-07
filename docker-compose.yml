@@ -18,7 +18,7 @@ services:
       - celery
     volumes:
       - static:/app/static
-      - media:/app/media
+      - ${EVA_VOLUME}:/app/media
       
   celery:
     build: .
@@ -34,7 +34,7 @@ services:
       - redis
       - postgres
     volumes:
-      - media:/app/media      
+      - ${EVA_VOLUME}:/app/media
       
   redis:
     image: redis
@@ -50,5 +50,4 @@ services:
       
 volumes:
   static:
-  media:
   database:
